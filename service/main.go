@@ -1,15 +1,57 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var (
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+
+	httpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_request_duration_seconds",
+			Help: "HTTP request duration in seconds",
+		},
+		[]string{"method", "endpoint"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal)
+	prometheus.MustRegister(httpRequestDuration)
+}
+
 func main() {
-    http.Handle("/metrics", promhttp.Handler())
-    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprint(w, "Service Running")
-    })
-    http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"status":"healthy","service":"prometheus-monitoring","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
+	})
+
+	http.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"message":"Data endpoint","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
+		
+		duration := time.Since(start).Seconds()
+		httpRequestDuration.WithLabelValues(r.Method, "/api/data").Observe(duration)
+		httpRequestsTotal.WithLabelValues(r.Method, "/api/data", "200").Inc()
+	})
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	fmt.Println("Grafana Prometheus Monitoring service running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
