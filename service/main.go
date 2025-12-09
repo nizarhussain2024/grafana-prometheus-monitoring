@@ -28,15 +28,32 @@ var (
 	)
 )
 
+var (
+	activeConnections = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "active_connections",
+			Help: "Number of active connections",
+		},
+	)
+)
+
 func init() {
 	prometheus.MustRegister(httpRequestsTotal)
 	prometheus.MustRegister(httpRequestDuration)
+	prometheus.MustRegister(activeConnections)
 }
 
 func main() {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"status":"healthy","service":"prometheus-monitoring","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
+		
+		duration := time.Since(start).Seconds()
+		httpRequestDuration.WithLabelValues(r.Method, "/health").Observe(duration)
+		httpRequestsTotal.WithLabelValues(r.Method, "/health", "200").Inc()
+		activeConnections.Inc()
+		defer activeConnections.Dec()
 	})
 
 	http.HandleFunc("/api/data", func(w http.ResponseWriter, r *http.Request) {

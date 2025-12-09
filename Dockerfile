@@ -12,3 +12,4 @@ COPY --from=builder /app/service .
 EXPOSE 8080
 CMD ["./service"]
 
+
