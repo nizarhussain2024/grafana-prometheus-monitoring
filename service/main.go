@@ -71,5 +71,6 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	fmt.Println("Grafana Prometheus Monitoring service running on :8080")
+	startAlertEvaluation()
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
