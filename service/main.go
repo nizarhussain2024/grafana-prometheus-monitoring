@@ -68,6 +68,17 @@ func main() {
 		httpRequestsTotal.WithLabelValues(r.Method, "/api/data", "200").Inc()
 	})
 
+	http.HandleFunc("/api/process", func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"message":"Processing complete","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
+		
+		duration := time.Since(start).Seconds()
+		recordBusinessOperation("process", "success")
+		recordProcessingTime("process", duration)
+		httpRequestsTotal.WithLabelValues(r.Method, "/api/process", "200").Inc()
+	})
+
 	http.Handle("/metrics", promhttp.Handler())
 
 	fmt.Println("Grafana Prometheus Monitoring service running on :8080")
