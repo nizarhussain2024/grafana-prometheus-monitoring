@@ -59,3 +59,4 @@ func recordBurnRate(service, sloName string, rate float64) {
 	errorBudgetBurnRate.WithLabelValues(service, sloName).Set(rate)
 }
 
+
